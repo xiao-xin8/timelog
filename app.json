@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "时光日志",
+    "slug": "timelog",
+    "version": "0.1.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FFFAF5",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryAddUsageDescription": "用于把倒数日卡片保存到相册"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#A3C7DF",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.example.timelog",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.REQUEST_INSTALL_PACKAGES"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sharing",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "用于把倒数日卡片保存到相册",
+          "savePhotosPermission": "用于把倒数日卡片保存到相册"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "用于选择头像或自定义背景图",
+          "cameraPermission": "用于拍摄头像或自定义背景图",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#FFB380"
+        }
+      ]
+    ]
+  }
+}

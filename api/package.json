@@ -1,0 +1,20 @@
+{
+  "name": "timelog-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "时光日志 App 后端 —— Cloudflare Workers + D1",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "tail": "wrangler tail",
+    "db:init": "wrangler d1 execute timelog --remote --file=./schema.sql",
+    "db:init:local": "wrangler d1 execute timelog --local --file=./schema.sql"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261003.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.147.0"
+  }
+}

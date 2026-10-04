@@ -1,0 +1,67 @@
+# 时光日志 App 后端（全新实现）
+#
+# 设计原则：**只有一个存储 = D1**。
+# 不绑 KV（写额度只有 1000/天，且同键限 1 写/秒），
+# 不绑 R2 / Durable Object（等真的要做图片和聊天再加）。
+#
+# 部署前要做三件事（见 README.md）：
+#   1. wrangler d1 create timelog         → 把返回的 database_id 填到下面
+#   2. wrangler d1 execute timelog --remote --file=./schema.sql
+#   3. wrangler secret put JWT_SECRET     → 填一串足够长的随机字符串
+
+name = "timelog-api"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+# ── 唯一的数据库 ────────────────────────────────
+[[d1_databases]]
+binding = "DB"
+database_name = "timelog"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# ── 定时维护：清理过期会话 + 过期墓碑 ────────────
+# 每天 04:00 UTC（北京时间 12:00）跑一次，免费额度有 5 个 cron，够用
+[triggers]
+crons = ["0 4 * * *"]
+
+# ── 头像图片（KV）──────────────────────────────
+# 为什么这里破例用了 KV：
+#   D1 存大 blob 会让每条用户查询都变重，而 R2 要额外开通（绑卡）+
+#   多一套图片地址管理。头像只有 400×400、几十 KB，KV 刚好够用。
+#   写入量极小（改一次头像 = 1 次写），不会碰到「1000 写/天」的免费上限。
+# key 形如 `avatar:<userId>:<版本号>`，版本号也出现在对外 URL 的 ?v= 里，
+# 用来绕开 KV「读有最长 60 秒缓存」的特性（新版本 = 新 key = 不吃旧缓存）。
+[[kv_namespaces]]
+binding = "AVATARS"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+# ── 聊天实时通道（Durable Object）──────────────
+# 文件开头那句「不绑 R2 / Durable Object（等真的要做图片和聊天再加）」，
+# 兑现的就是这里：聊天要走 WebSocket，而 Workers 里的 WebSocket **必须挂在
+# DO 上** —— 普通 Worker 是请求级的，持不住长连接。
+#
+# ⚠️ 它的职责**只有广播**，不存任何消息。消息的真相在 D1 的 chat_messages：
+# 会话列表要「每个会话的最后一条 + 未读数」，那是 SQL 聚合的活；
+# 消息要是存在 DO 里，就得跨 N 个 DO 去取。
+[[durable_objects.bindings]]
+name = "CHAT_HUB"
+class_name = "ChatHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChatHub"]
+
+# ── 环境变量（不要在这里写密钥）────────────────
+[vars]
+# access token 有效期（秒），2 小时
+ACCESS_TOKEN_TTL = "7200"
+# refresh token 滑动窗口（秒），180 天。每次刷新都会重新拉满
+REFRESH_TOKEN_TTL = "15552000"
+
+# ── 密码哈希迭代次数（PBKDF2-SHA256）──────────────────────────
+# ⚠️ 全后端唯一受 Workers CPU 额度卡脖子的参数，别随手调大：
+#   Workers Free  每个请求只有 10ms CPU，21 万次迭代约 53ms → 直接 Error 1102
+#   Workers Paid  30s CPU，21 万次随便跑
+# 实测：10000 次约 2.5ms，能安全落在免费额度内。
+# 换值不影响已有账号（迭代次数跟着每条哈希存库）。
+PASSWORD_ITERATIONS = "10000"
